@@ -1,0 +1,2 @@
+# poet_model_distillation
+一个基于知识蒸馏与检索增强生成的轻量级古诗词生成模型
