@@ -37,18 +37,19 @@ def data_cleaning():
 
     for (dynasty, author), group in tqdm(df.groupby([1, 2])):
         dynasty_en = convert_chinese_to_pinyin(dynasty)
-        dir_name = f"../../resource/poems"
+        dir_name = f"../../resource/cleaned_poems"
         file_name = f"{dynasty_en}.txt"
         with open(os.path.abspath(os.path.join(dir_name, file_name)), "a", encoding="utf-8") as f:
             try:
                 for _, row in group.iterrows():
-                    poem = f"""
-                    题目：{clean(row[0])}
-                    朝代：{dynasty}
-                    作者：{author}
-                    正文：{clean(row[3])}
-                    """
-                    f.write(poem)
+                    lines = [
+                        f"题目：{clean(row[0])}",
+                        f"朝代：{dynasty}",
+                        f"作者：{clean(row[2])}",
+                        f"正文：{clean(row[3])}",
+                        ""
+                    ]
+                    f.write('\n'.join(lines))
             except Exception as e:
                 logger.error(f"Error processing {dynasty} {author}: {e}")
                 continue

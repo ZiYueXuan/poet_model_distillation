@@ -7,7 +7,9 @@ authors = [
 ]
 dependencies = [
     "pandas",
-    "pypinyin"
+    "pypinyin",
+    "torch>=2.10.0",
+    "datasets"
 ]
 requires-python = "==3.12.*"
 readme = "README.md"
