@@ -2,14 +2,12 @@ import os.path
 from pathlib import Path
 
 import numpy as np
-from tqdm import tqdm
-
-import torch
 from datasets import Dataset
+from tqdm import tqdm
 from transformers import AutoTokenizer
 
 DATA_DIR = '../../resource/cleaned_poems'
-MODEL_PATH = '../../resource/models/deepseek-r1-7b'
+MODEL_PATH = '/root/autodl-tmp/models/deepseek-r1-8b'
 BLOCK_SIZE = 512
 CHUNK_CHARS = 50000
 OUTPUT_DIR = '../../resource/packed_poems'

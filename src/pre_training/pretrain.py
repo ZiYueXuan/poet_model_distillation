@@ -8,18 +8,19 @@ from transformers import (
     DataCollatorForLanguageModeling
 )
 
-MODEL_PATH = "../../resource/models/deepseek-r1-7b"
-PACKED_DATA_PATH = "../../resource/packed_poems"
-OUT_DIR = "../../resource/deepseek-poetry-pretrain"
-
+MODEL_PATH = "/root/autodl-tmp/models/deepseek-r1-8b"
+PACKED_DATA_PATH = "/root/autodl-tmp/poet_model_distillation/resource/packed_poems"
+OUT_DIR = "/root/autodl-tmp/poet_model_distillation/resource/deepseek-r1-pretrain"
 
 if __name__ == '__main__':
-
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_PATH,
-        torch_dtype=torch.bfloat16,
-        trust_remote_code=True
+        dtype=torch.bfloat16,
+        trust_remote_code=True,
     )
+
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable()
 
     dataset = load_from_disk(PACKED_DATA_PATH)
 
@@ -34,29 +35,55 @@ if __name__ == '__main__':
     training_args = TrainingArguments(
         output_dir=OUT_DIR,
 
-        # ===== batch相关 =====
-        per_device_train_batch_size=2,
-        gradient_accumulation_steps=32,  # 2×32×2GPU=128
+        # 批次配置
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=16,
 
-        # ===== 训练规模 =====
-        num_train_epochs=3,
-        learning_rate=2e-5,
-        weight_decay=0.1,
-        warmup_ratio=0.03,
+        # 训练规模
+        num_train_epochs=1,
+        max_steps=-1,
 
-        # ===== 性能 =====
-        bf16=True,
-        logging_steps=20,
-        save_steps=500,
-        save_total_limit=2,
+        # 优化器
+        learning_rate=1e-4,
+        weight_decay=0.01,
+        adam_beta1=0.9,
+        adam_beta2=0.95,
+        adam_epsilon=1e-8,
 
-        # ===== deepspeed =====
-        deepspeed="ds_zero3.json",
-
-        # ===== 其它 =====
+        # 学习率调度
         lr_scheduler_type="cosine",
-        report_to="none",
+        warmup_steps=1000,
+        warmup_ratio=0.02,
+
+        # 训练配置
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        fp16=False,
+        bf16=True,
+
+        # 性能优化
         dataloader_num_workers=4,
+        dataloader_pin_memory=True,
+        torch_compile=True,  # 需要torch>=2.0
+        optim="adamw_torch",
+
+        # 日志与保存
+        logging_steps=10,
+        save_steps=2000,
+        save_total_limit=3,
+        save_strategy="steps",
+        eval_steps=500,
+
+        # 报告
+        report_to="tensorboard",
+        logging_dir=f"{OUT_DIR}/logs",
+
+        # DeepSpeed
+        deepspeed="/path/to/ds_zero3.json",
+
+        # 其他
+        remove_unused_columns=False,
+        ddp_find_unused_parameters=False,
     )
 
     trainer = Trainer(

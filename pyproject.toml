@@ -1,20 +1,28 @@
 [project]
 name = "poet_model_distillation"
 version = "0.1.0"
-description = "Default template for PDM package"
+description = "一个轻量级的古典诗歌蒸馏模型"
 authors = [
     {name = "ZiYueXuan", email = "671342610@qq.com"},
 ]
-dependencies = [
-    "pandas",
-    "pypinyin",
-    "torch>=2.10.0",
-    "datasets"
-]
+
 requires-python = "==3.12.*"
+
+dependencies = [
+    "torch==2.4.0",
+    "transformers>=4.40.0",
+    "datasets>=2.19.0",
+    "accelerate>=0.30.0",
+    "deepspeed>=0.14.2",
+    "sentencepiece",
+    "tokenizers>=0.15",
+    "pandas",
+    "tqdm",
+    "pypinyin"
+]
+
 readme = "README.md"
 license = {text = "MIT"}
-
 
 [tool.pdm]
 distribution = false
