@@ -2,9 +2,9 @@
 
 
 
-整体思路是在DeepSeek R1-8B的基座上进行预训练+知识蒸馏+格律辅助学习（SFT）
+整体思路是在DeepSeek-R1-8B的基座上进行预训练+知识蒸馏+格律辅助学习（SFT）。
 
-其中基准模型选择[DeepSeek-R1-0528-Qwen3-8B](https://hf-mirror.com/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B/tree/main)，教师模型选择[DeepSeek-R1-Distill-Qwen-32B](https://hf-mirror.com/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B)。
+其中：基准模型（学生模型）选择[DeepSeek-R1-0528-Qwen3-8B](https://hf-mirror.com/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B/tree/main)，教师模型选择[DeepSeek-R1-Distill-Qwen-14B](https://hf-mirror.com/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B)。
 
 ## 模型下载
 
@@ -54,6 +54,38 @@ Tokenizer与Packing：使用HuggingFace进行自动Packing
 
 ## 使用DeepSeek R1-32B模型作为教师模型进行知识蒸馏
 
+1.  Sequence KD（必做）：
 
+    >   教师模型：
+    >
+    >   关键词–>全诗；首句–>全诗；上句–>下句（对联）
+    >
+    >   学生模型：直接CE拟合教师模型的输出
+
+2.   Logits KD：
+
+     $$ KL(students\_logits, teacher\_logits/T) $$
+
+3.   Hidden KD：
 
 ## 格律辅助学习（SFT）
+
+给汉字定义平仄标签（平、中、仄）。
+
+具体实现：在最后一层hidden state上加多个classification heads。
+
+```txt
+Transfomer(8B):
+    |
+last hidden state
+    |
+    | --- LM Head(原有)
+    | --- 平仄   Linear(H, 3)
+    | --- 韵部   平水韵   当state_end_mask=1时计算Loss
+    | --- 句末判断
+```
+
+$$ Loss = L_{LM} + \lambda_1 L_{平仄} +\lambda_2 L_{韵部} +\lambda_3 L_{句末} $$
+
+>   $\lambda_1=0.08$，$\lambda_2=0.03$，$\lambda_3=0.01$
+
