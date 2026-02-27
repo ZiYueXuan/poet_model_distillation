@@ -7,7 +7,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 DATA_DIR = '../../resource/cleaned_poems'
-MODEL_PATH = '/root/autodl-tmp/models/deepseek-r1-8b'
+MODEL_PATH = '../../resource/models/deepseek-r1-8b'
 BLOCK_SIZE = 512
 CHUNK_CHARS = 50000
 OUTPUT_DIR = '../../resource/packed_poems'
@@ -55,7 +55,7 @@ def build_packed_dataset(texts, tokenizer, block_size=512):
 
     for text in tqdm(texts, desc="Tokenizing files"):
         ids = safe_tokenize(text, tokenizer, CHUNK_CHARS)
-
+        all_ids.append(tokenizer.bos_token_id)
         all_ids.extend(ids)
         all_ids.append(tokenizer.eos_token_id)
 
@@ -79,7 +79,7 @@ def add_labels(examples):
     """
     给每个样本添加标签
     """
-    examples['labels'] = examples['input_ids'].copy()
+    examples['labels'] = examples['input_ids']
     return examples
 
 

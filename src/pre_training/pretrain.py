@@ -1,98 +1,74 @@
 import torch
 from datasets import load_from_disk
 from transformers import (
-    AutoModelForCausalLM,
     AutoTokenizer,
+    AutoModelForCausalLM,
     Trainer,
-    TrainingArguments,
-    DataCollatorForLanguageModeling
+    TrainingArguments
 )
+from peft import LoraConfig, get_peft_model
 
-MODEL_PATH = "/root/autodl-tmp/models/deepseek-r1-8b"
-PACKED_DATA_PATH = "/root/autodl-tmp/poet_model_distillation/resource/packed_poems"
-OUT_DIR = "/root/autodl-tmp/poet_model_distillation/resource/deepseek-r1-pretrain"
+MODEL_PATH = "../../resource/models/deepseek-r1-8b"
+DATA_PATH = "../../resource/packed_poems"
+OUTPUT_DIR = "../../resource/output/poetry_dapt"
 
-if __name__ == '__main__':
-    model = AutoModelForCausalLM.from_pretrained(
+
+def main():
+    tokenizer = AutoTokenizer.from_pretrained(
         MODEL_PATH,
-        dtype=torch.bfloat16,
         trust_remote_code=True,
     )
 
-    model.config.use_cache = False
-    model.gradient_checkpointing_enable()
-
-    dataset = load_from_disk(PACKED_DATA_PATH)
-
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=AutoTokenizer.from_pretrained(
-            MODEL_PATH,
-            trust_remote_code=True
-        ),
-        mlm=False
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_PATH,
+        torch_dtype=torch.bfloat16,
+        trust_remote_code=True
     )
 
+    # LoRA
+    lora_config = LoraConfig(
+        r=64,
+        lora_alpha=128,
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj"
+        ],
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
+
+    print("Loading packed dataset...")
+    dataset = load_from_disk(DATA_PATH)
+
     training_args = TrainingArguments(
-        output_dir=OUT_DIR,
-
-        # 批次配置
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=16,
-
-        # 训练规模
-        num_train_epochs=1,
-        max_steps=-1,
-
-        # 优化器
-        learning_rate=1e-4,
-        weight_decay=0.01,
-        adam_beta1=0.9,
-        adam_beta2=0.95,
-        adam_epsilon=1e-8,
-
-        # 学习率调度
-        lr_scheduler_type="cosine",
-        warmup_steps=1000,
-        warmup_ratio=0.02,
-
-        # 训练配置
-        gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
-        fp16=False,
-        bf16=True,
-
-        # 性能优化
-        dataloader_num_workers=4,
-        dataloader_pin_memory=True,
-        torch_compile=True,  # 需要torch>=2.0
-        optim="adamw_torch",
-
-        # 日志与保存
+        output_dir=OUTPUT_DIR,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=4,
+        num_train_epochs=2,
+        learning_rate=1e-5,
+        warmup_ratio=0.03,
         logging_steps=10,
-        save_steps=2000,
-        save_total_limit=3,
-        save_strategy="steps",
-        eval_steps=500,
-
-        # 报告
-        report_to="tensorboard",
-        logging_dir=f"{OUT_DIR}/logs",
-
-        # DeepSpeed
-        deepspeed="/path/to/ds_zero3.json",
-
-        # 其他
+        save_steps=500,
+        save_total_limit=2,
+        bf16=True,
+        deepspeed="ds_config.json",
         remove_unused_columns=False,
-        ddp_find_unused_parameters=False,
+        report_to="none",
     )
 
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=dataset,
-        data_collator=data_collator,
+        train_dataset=dataset
     )
 
     trainer.train()
+    trainer.save_model(OUTPUT_DIR)
 
-    trainer.save_model(OUT_DIR)
+
+if __name__ == "__main__":
+    main()
