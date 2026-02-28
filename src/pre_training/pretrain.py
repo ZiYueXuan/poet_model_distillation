@@ -4,13 +4,27 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     Trainer,
-    TrainingArguments
+    TrainingArguments,
+    TrainerCallback
 )
 from peft import LoraConfig, get_peft_model
 
 MODEL_PATH = "../../resource/models/deepseek-r1-8b"
 DATA_PATH = "../../resource/packed_poems"
 OUTPUT_DIR = "../../resource/output/poetry_dapt"
+
+
+class LossOnlyCallback(TrainerCallback):
+    def __init__(self, log_path="loss.log"):
+        self.log_path = log_path
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return
+
+        if "loss" in logs:
+            with open(self.log_path, "a") as f:
+                f.write(f"{state.global_step},   {logs['loss']}\n")
 
 
 def main():
@@ -63,10 +77,32 @@ def main():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=dataset
+        train_dataset=dataset,
+        callbacks=[LossOnlyCallback()]
     )
 
-    trainer.train()
+    # 尝试从最新 checkpoint 恢复
+    # === 新增：自动查找最新 checkpoint 并恢复 ===
+    import os
+    last_checkpoint = None
+    if os.path.exists(OUTPUT_DIR):
+        # 查找所有以 "checkpoint-" 开头的目录（DeepSpeed 默认命名）
+        checkpoints = [
+            d for d in os.listdir(OUTPUT_DIR)
+            if os.path.isdir(os.path.join(OUTPUT_DIR, d)) and d.startswith("checkpoint-")
+        ]
+        if checkpoints:
+            # 按数字排序取最新（如 checkpoint-3500 > checkpoint-3000）
+            checkpoints.sort(key=lambda x: int(x.split("-")[1]))
+            last_checkpoint = os.path.join(OUTPUT_DIR, checkpoints[-1])
+            print(f"✅ Found latest checkpoint: {last_checkpoint}")
+        else:
+            print("⚠️  No checkpoint found, starting from scratch.")
+    else:
+        print("⚠️  Output directory does not exist, starting from scratch.")
+
+    # 启动训练（自动恢复或从头开始）
+    trainer.train(resume_from_checkpoint=last_checkpoint)
     trainer.save_model(OUTPUT_DIR)
 
 
