@@ -11,7 +11,7 @@ def download_model(model_id, save_path):
 
 
 if __name__ == '__main__':
-    model_id = "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+    model_id = "deepseek-ai/DeepSeek-V2-Lite"
     # model_id = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
-    save_path = "../../resource/models/deepseek-r1-14b"
+    save_path = "../../resource/models/deepseek-v2-lite"
     download_model(model_id, save_path)
